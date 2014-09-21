@@ -2,16 +2,24 @@
 # -*- coding: utf-8 -*-
 
 from pprint import pprint
+from functools import partial
 import urllib.request
 import time
 import datetime
 import csv
 
+
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.mlab as mlab
+import matplotlib.ticker as ticker
 
 STOCK_URL = "http://k-db.com/stocks/{code}-T?year={year}&download=csv"
 NIKKEI_URL = "http://k-db.com/indices/I101?year={year}&download=csv"
+
+def format_date(x, pos=None, N=None, r=None):
+    thisind = np.clip(int(x+0.5), 0, N-1)
+    return r.date[thisind].strftime("%Y-%m-%d")
 
 def crawl(ticker_symbols):
     for code, name in ticker_symbols.items():
@@ -29,41 +37,19 @@ def crawl(ticker_symbols):
         time.sleep(1)
 
 def analyze(ticker_symbols):
-    data = {}
+    col_names = ("date", "initial", "high", "low", "end",)
     for code, name in ticker_symbols.items():
-        data[code] = {}
         for year in range(2007, 2014):
-            data[code][year] = []
-            with open("./csv/{year}_{name}.csv".format(year=year, name=name)) as f:
-                reader = csv.reader(f)
-                next(reader)
-                next(reader)
-                for row in reader:
-                    data[code][year].append(row)
-
-    data["NIKKEI"] = {}
-    for year in range(2007, 2014):
-        data["NIKKEI"][year] = []
-        with open("./csv/{year}_NIKKEI.csv".format(year=year, name=name)) as f:
-            reader = csv.reader(f)
-            next(reader)
-            next(reader)
-            for row in reader:
-                data["NIKKEI"][year].append(row)
-
-    for code, year_data in data.items():
-        X = []
-        Y = []
-        for year, rows in year_data.items():
-            for row in rows:
-                X.append(datetime.datetime.strptime(row[0], "%Y-%m-%d"))
-                Y.append(float(row[3]))
-        fig = plt.figure()
-        fig.autofmt_xdate()
-        Y = np.array(Y)
-        plt.plot(X, Y)
-        plt.savefig("./images_{code}.png".format(code=code))
-
+            dat = mlab.csv2rec("./csv/{year}_{name}.csv".format(year=year, name=name), skiprows=2, names=col_names)
+            N = len(dat)
+            ind = np.arange(N)
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            ax.plot(ind, dat.end, "o-")
+            applied_format_date = partial(format_date, N=N, r=dat)
+            ax.xaxis.set_major_formatter(ticker.FuncFormatter(applied_format_date))
+            fig.autofmt_xdate()
+            plt.savefig("./image_{code}_{year}.png".format(code=code, year=year))
 
 if __name__ == "__main__":
     with open("./ticker_symbol.list") as f:
