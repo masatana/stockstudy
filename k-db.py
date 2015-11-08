@@ -3,6 +3,8 @@
 
 from pprint import pprint
 from functools import partial
+from datetime import datetime
+import sqlite3
 import os
 import urllib.request
 import time
@@ -10,6 +12,7 @@ import datetime
 import csv
 
 
+import pandas
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.mlab as mlab
@@ -36,16 +39,24 @@ def crawl(ticker_symbols):
         os.makedirs("./csv")    
     for code, name in ticker_symbols.items():
         with open("./csv/{code}.csv".format(code=code), "w") as f:
-            for year in range(2007, 2014):
+            for year in range(2007, datetime.today().year+1):
                 response = urllib.request.urlopen(STOCK_URL.format(code=code, year=year))
-                f.write(format_response(response))
+                formatted_response = format_response(response)
+                if format_response.endswith("\n"):
+                    f.write(formatted_response)
+                else:
+                    f.write(formatted_response+"\n")
             time.sleep(1)
 
     # NIKKEI STOCK AVERAGE
     with open("./csv/NIKKEI.csv", "w") as f:
-        for year in range(2007, 2014):
+        for year in range(2007, datetime.today().year+1):
             response = urllib.request.urlopen(NIKKEI_URL.format(code=code, year=year))
-            f.write(format_response(response))
+            formatted_response = format_response(response)
+            if format_response.endswith("\n"):
+                f.write(formatted_response)
+            else:
+                f.write(formatted_response+"\n")
         time.sleep(1)
 
 def analyze(ticker_symbols):
@@ -55,12 +66,13 @@ def analyze(ticker_symbols):
         "max_price",
         "min_price",
         "end_price",
-        "price",
+        "volume",
         "traiding_value",
     )
     for code in ticker_symbols:
         print(code)
-        dat = mlab.csv2rec("./csv/{code}.csv".format(code=code), skiprows=2, names=col_names)
+        dat = mlab.csv2rec("./csv/{code}.csv".format(code=code),
+                skiprows=2, names=col_names)
         N = len(dat)
         ind = np.arange(N)
         fig = plt.figure()
@@ -71,8 +83,58 @@ def analyze(ticker_symbols):
         fig.autofmt_xdate()
         plt.savefig("./image_{code}.png".format(code=code))
 
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stocks.db")
+
+def create_db(symbols):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""CREATE TABLE symbols (
+    symbol INT,
+    company_name TEXT,
+    PRIMARY KEY (symbol)
+    )""")
+    conn.commit()
+    for symbol, company_name in symbols.items():
+        c.execute("INSERT INTO symbols VALUES (?, ?)", (symbol, company_name))
+        conn.commit()
+
+    for symbol in symbols:
+        c.execute("""CREATE TABLE {symbol} (
+        date TEXT,
+        start_price REAL,
+        max_price REAL,
+        min_price REAL,
+        end_price REAL,
+        volume INT,
+        traiding_value INT,
+        PRIMARY KEY (date)
+        )""".format(symbol=symbol))
+        conn.commit()
+    c.close()
+
+
+def store_data(symbols):
+    col_names = (
+        "date",
+        "start_price",
+        "max_price",
+        "min_price",
+        "end_price",
+        "volume",
+        "traiding_value",
+    )
+    if os.path.isfile(DB_PATH):
+        create_db()
+    con = sqlite3.connect(DB_PATH)
+    for symbol in symbols:
+        df = pandas.read_csv("./csv/{symbol}.csv".format(symbol=symbol),
+                names=col_names)
+        df.to_sql(symbol, con=con, if_exists="append")
+
 if __name__ == "__main__":
     with open("./symbols.list") as f:
-        symbols = {int(codename.strip().split()[0]) : codename.strip().split()[1] for codename in f}
+        symbols = {int(codename.strip().split()[0]) : codename.strip().split()[1]
+                for codename in f}
     #crawl(symbols)
-    analyze(symbols)
+    store_data(symbols)
+    #analyze(symbols)

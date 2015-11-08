@@ -4,6 +4,8 @@
 import os
 import sqlite3
 
+import pandas
+
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stocks.db")
 
 def create_db():
@@ -18,20 +20,10 @@ def create_db():
     min_price REAL,
     start_price REAL,
     end_price REAL,
+    volume INT,
+    traiding_value INT,
     PRIMARY KEY (symbol, date)
     )""")
-    conn.commit()
-    c.close()
-
-def insert_db(data):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    if any(isinstance(i, list) for i in data):
-        # if data is a nested list (means multiple data)
-        c.executemany("INSERT INTO stocks VALUES (?,?,?,?,?,?,?)",  data)
-    else:
-        # assuming that data is just one row
-        c.execute("INSERT INTO stocks VALUES (?,?,?,?,?,?,?)", data)
     conn.commit()
     c.close()
 
