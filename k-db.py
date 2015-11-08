@@ -3,6 +3,7 @@
 
 from pprint import pprint
 from functools import partial
+import os
 import urllib.request
 import time
 import datetime
@@ -31,6 +32,8 @@ def format_response(response):
             .split()[2:])
 
 def crawl(ticker_symbols):
+    if not os.path.isdir("./csv"):
+        os.makedirs("./csv")    
     for code, name in ticker_symbols.items():
         with open("./csv/{code}.csv".format(code=code), "w") as f:
             for year in range(2007, 2014):
@@ -46,7 +49,15 @@ def crawl(ticker_symbols):
         time.sleep(1)
 
 def analyze(ticker_symbols):
-    col_names = ("date", "initial", "high", "low", "end", "volume", "sales_value",)
+    col_names = (
+        "date",
+        "start_price",
+        "max_price",
+        "min_price",
+        "end_price",
+        "price",
+        "traiding_value",
+    )
     for code in ticker_symbols:
         print(code)
         dat = mlab.csv2rec("./csv/{code}.csv".format(code=code), skiprows=2, names=col_names)
@@ -54,14 +65,14 @@ def analyze(ticker_symbols):
         ind = np.arange(N)
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.plot(ind, dat.end)
+        ax.plot(ind, dat.end_price)
         applied_format_date = partial(format_date, N=N, r=dat)
         ax.xaxis.set_major_formatter(ticker.FuncFormatter(applied_format_date))
         fig.autofmt_xdate()
         plt.savefig("./image_{code}.png".format(code=code))
 
 if __name__ == "__main__":
-    with open("./ticker_symbol.list") as f:
-        ticker_symbols = {int(codename.strip().split()[0]) : codename.strip().split()[1] for codename in f}
-    #crawl(ticker_symbols)
-    analyze(ticker_symbols)
+    with open("./symbols.list") as f:
+        symbols = {int(codename.strip().split()[0]) : codename.strip().split()[1] for codename in f}
+    #crawl(symbols)
+    analyze(symbols)
