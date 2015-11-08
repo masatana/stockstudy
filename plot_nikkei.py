@@ -7,7 +7,6 @@ import jsm
 import pandas.compat as compat
 import pandas
 import numpy
-import jpmarket
 
 if __name__ == "__main__":
     start = datetime(2014, 11, 1)
