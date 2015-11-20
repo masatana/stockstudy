@@ -10,6 +10,8 @@ import urllib.request
 import time
 import datetime
 import csv
+import argparse
+import sys
 
 
 import pandas
@@ -67,7 +69,7 @@ def analyze(ticker_symbols):
         "min_price",
         "end_price",
         "volume",
-        "traiding_value",
+        "trading_value",
     )
     for code in ticker_symbols:
         print(code)
@@ -106,14 +108,14 @@ def create_db(symbols):
         min_price REAL,
         end_price REAL,
         volume INT,
-        traiding_value INT,
+        trading_value INT,
         PRIMARY KEY (date)
         )""".format(symbol=symbol))
         conn.commit()
     c.close()
 
 
-def store_data(symbols):
+def store(symbols):
     col_names = (
         "date",
         "start_price",
@@ -121,7 +123,7 @@ def store_data(symbols):
         "min_price",
         "end_price",
         "volume",
-        "traiding_value",
+        "trading_value",
     )
     if os.path.isfile(DB_PATH):
         create_db()
@@ -135,6 +137,11 @@ if __name__ == "__main__":
     with open("./symbols.list") as f:
         symbols = {int(codename.strip().split()[0]) : codename.strip().split()[1]
                 for codename in f}
-    #crawl(symbols)
-    store_data(symbols)
-    #analyze(symbols)
+    if sys.argv[0] == "crawl":
+        crawl(symbols)
+    elif sys.argv[0] == "store":
+        store(symbols)
+    elif sys.argv[0] == "analyze":
+        analyze(symbols)
+    else:
+        print("Type: (crawl|store|analyze)")
